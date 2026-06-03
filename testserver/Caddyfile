@@ -1,0 +1,10 @@
+{
+	# Use Caddy's internal CA for self-signed certificates.
+	# Connect with rscli --insecure to skip cert validation.
+	local_certs
+}
+
+:443 {
+	tls internal
+	reverse_proxy testserver:8080
+}

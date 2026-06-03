@@ -1,0 +1,9 @@
+services:
+  testserver:
+    build:
+      context: .
+      dockerfile: testserver/Dockerfile
+    environment:
+      EXTERNAL_HOST: localhost:8443
+    ports:
+      - "8443:8443"
