@@ -1,0 +1,456 @@
+version: 0.1.0
+codd_required_version: null
+codd_required_version_strict: false
+project:
+  frameworks: []
+  name: remotestorage-cli
+  language: go
+ai_command: claude --print --model claude-sonnet-4-6 --tools ""
+ai_commands:
+  plan_derive: null
+  design_doc_extract: null
+  criteria_expand: null
+coding_principles: null
+scan:
+  source_dirs:
+  - src/
+  test_dirs:
+  - tests/
+  doc_dirs:
+  - docs/
+  config_files: []
+  exclude:
+  - '**/node_modules/**'
+  - '**/__pycache__/**'
+  - '**/dist/**'
+graph:
+  store: jsonl
+  path: codd/scan
+bands:
+  green:
+    min_confidence: 0.9
+    min_evidence_count: 2
+  amber:
+    min_confidence: 0.5
+propagation:
+  max_depth: 10
+  stop_at_contract_boundary: true
+coherence:
+  capability_patterns: {}
+  path_prefix_tolerant:
+  - src/
+  - lib/
+  - app/
+hitl:
+  mode: cooperative
+requirement_completeness:
+  project_type: null
+  channels:
+  - askuserquestion
+  - ntfy
+  - lexicon
+  ntfy_topic: ''
+  questions: []
+  ai_missing_items: false
+  semantic_check: false
+  ai_generate_options: false
+  ai_timeout_seconds: 30
+fix:
+  test_command: null
+  max_attempts: 3
+verify:
+  typecheck_command: null
+  test_command: null
+  report_output: docs/test/verify_report.md
+  e2e_setup_command: null
+  e2e_command: null
+  e2e_deploy_command: null
+  e2e_ci_command: null
+typecheck:
+  enabled: false
+  command: null
+  max_repair_attempts: 3
+conventions: []
+extraction:
+  frontmatter_alias: {}
+ci:
+  provider: github_actions
+  workflow_glob: .github/workflows/*.yml
+  required_triggers:
+  - push
+  - pull_request
+  runtime_check: false
+  staleness_days: 14
+  default_branch: main
+context_acquisition:
+  enabled: true
+  strategy: web_search_first
+  sources:
+  - type: official_docs
+    priority: high
+  - type: github_search
+    priority: medium
+  - type: web_search
+    priority: medium
+  cache_ttl_days: 30
+  freshness_check_on_startup: false
+  fact_check:
+    enabled: true
+    min_sources: 2
+    min_confidence: 0.6
+wave_config:
+  '1':
+  - node_id: test:acceptance-criteria
+    output: docs/test/acceptance_criteria.md
+    title: 受入基準
+    depends_on:
+    - id: req:remotestorage-cli-requirements
+      relation: derives_from
+      semantic: governance
+    conventions:
+    - targets:
+      - cli_command:rscli
+      reason: 終了コード体系(0:成功/1:部分的失敗/2:認証失敗/3:ネットワークエラー/4:その他)は受入判定基準であり違反時リリース不可。
+    - targets:
+      - module:auth
+      - module:config
+      reason: トークン保護(Linux/WSL:0600、macOS:Keychain、Windows:Credential Manager)は受入基準に含まれる必須セキュリティ要件。
+    - targets:
+      - module:transfer
+      reason: リトライ対象(429/500/502/503)とexponential backoff(初回1秒/最大30秒/フルジッター)は受入基準として検証必須。
+    modules:
+    - auth
+    - sync
+    - transfer
+    - cli
+    - config
+    - remotestorage
+  - node_id: governance:adr-protocol-and-auth
+    output: docs/governance/adr_protocol_and_auth.md
+    title: 'ADR: プロトコルバージョンとOAuth2方式の決定'
+    depends_on:
+    - id: req:remotestorage-cli-requirements
+      relation: derives_from
+      semantic: governance
+    conventions:
+    - targets:
+      - module:remotestorage
+      reason: draft-dejong-remotestorage-22準拠必須。プロトコルバージョン逸脱はリリース不可。
+    - targets:
+      - module:auth
+      reason: PKCE(RFC 7636)必須、RFC 7591動的クライアント登録優先はプロトコル準拠要件。
+    modules:
+    - auth
+    - remotestorage
+  - node_id: governance:adr-cross-platform
+    output: docs/governance/adr_cross_platform.md
+    title: 'ADR: クロスプラットフォーム対応方針'
+    depends_on:
+    - id: req:remotestorage-cli-requirements
+      relation: derives_from
+      semantic: governance
+    conventions:
+    - targets:
+      - module:config
+      - module:auth
+      reason: os.UserConfigDir()使用、OS別トークン保護(Keychain/Credential Manager/0600)はリリース必須要件。
+    - targets:
+      - cli_command:rscli
+      reason: Linux/macOS/Windowsの3 OS対応は配布要件。未対応OSがあればリリース不可。
+    modules:
+    - config
+    - auth
+    - cli
+  '2':
+  - node_id: design:system-design
+    output: docs/design/system_design.md
+    title: システム設計
+    depends_on:
+    - id: test:acceptance-criteria
+      relation: constrained_by
+      semantic: governance
+    - id: governance:adr-protocol-and-auth
+      relation: constrained_by
+      semantic: governance
+    - id: governance:adr-cross-platform
+      relation: constrained_by
+      semantic: governance
+    conventions:
+    - targets:
+      - module:remotestorage
+      reason: HTTPS必須(--insecureは開発・テスト環境のみ)。本番通信でのHTTP許容はリリース不可。
+    - targets:
+      - module:auth
+      reason: トークン保護(パーミッション0600/Keychain/Credential Manager)をアーキテクチャレベルで保証必須。
+    - targets:
+      - module:cli
+      reason: シグナル処理によるsync_state.jsonのatomic write保証はデータ整合性のリリース必須要件。
+    - targets:
+      - module:cli
+      reason: ロックファイルによる同時実行制御必須。PID記録とstale自動削除を含む。
+    modules:
+    - auth
+    - sync
+    - transfer
+    - cli
+    - config
+    - remotestorage
+  '3':
+  - node_id: design:auth-design
+    output: docs/design/auth_design.md
+    title: 認証設計
+    depends_on:
+    - id: design:system-design
+      relation: depends_on
+      semantic: technical
+    - id: governance:adr-protocol-and-auth
+      relation: constrained_by
+      semantic: governance
+    conventions:
+    - targets:
+      - module:auth
+      reason: PKCE(RFC 7636)必須。localhostリダイレクトのポート動的選択必須。refresh token失敗時のブラウザ再認証フォールバック必須。
+    - targets:
+      - module:auth
+      - module:config
+      reason: 'トークン保存: Linux/WSL=ファイル0600、macOS=Keychain、Windows=Credential Manager。違反はリリース不可。'
+    - targets:
+      - module:auth
+      reason: --no-interactive時はトークン事前存在必須。認証プロンプト表示はエラー終了(コード2)。
+    modules:
+    - auth
+    - config
+  - node_id: design:sync-transfer-design
+    output: docs/design/sync_transfer_design.md
+    title: 同期・転送設計
+    depends_on:
+    - id: design:system-design
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:sync
+      reason: '初回sync時の挙動(push: ローカルのみ→アップロード/リモートのみ→スキップ、pull: 逆)は仕様必須。違反はデータ損失リスクでリリース不可。'
+    - targets:
+      - module:sync
+      reason: sync_state.jsonはatomic write必須。中断後の再開可能性はリリース要件。ファイル毎に更新。
+    - targets:
+      - module:transfer
+      reason: 429受信時は全ワーカー一時停止しRetry-After値を全ワーカーに適用して再開。並列転送デフォルト3。
+    - targets:
+      - module:sync
+      reason: '削除伝播: push時ローカル削除→リモート削除、pull時リモート削除→ローカル削除。--no-deleteで無効化可能。初回syncでは削除伝播しない。'
+    modules:
+    - sync
+    - transfer
+  - node_id: design:cli-design
+    output: docs/design/cli_design.md
+    title: CLI設計
+    depends_on:
+    - id: design:system-design
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - cli_command:rscli
+      reason: 終了コード(0/1/2/3/4)の意味は厳守。部分的失敗を0で返すとユーザーのスクリプトが誤動作するためリリース不可。
+    - targets:
+      - cli_command:rscli
+      reason: '--dry-run適用範囲: push/pull/rmのみ。connect/disconnect/ls/get/putでは無視。適用範囲の誤りはリリース不可。'
+    - targets:
+      - module:cli
+      reason: プログレス表示はstderr出力。非TTY時は自動抑制。stdout汚染はパイプ連携を破壊するためリリース不可。
+    - targets:
+      - module:cli
+      reason: シンボリックリンク・特殊ファイルはスキップしてwarning表示必須。追従するとセキュリティリスク。
+    modules:
+    - cli
+  '4':
+  - node_id: design:component-dependency-map
+    output: docs/detailed_design/component_dependency_map.md
+    title: コンポーネント依存関係マップ
+    depends_on:
+    - id: design:auth-design
+      relation: depends_on
+      semantic: technical
+    - id: design:sync-transfer-design
+      relation: depends_on
+      semantic: technical
+    - id: design:cli-design
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:auth
+      - module:sync
+      - module:transfer
+      - module:remotestorage
+      - module:config
+      - module:cli
+      reason: モジュール間の依存方向はこのマップで定義した方向のみ許容。循環依存はビルド不可のためリリース不可。
+    modules:
+    - auth
+    - sync
+    - transfer
+    - cli
+    - config
+    - remotestorage
+  - node_id: design:auth-sequence
+    output: docs/detailed_design/auth_sequence.md
+    title: 認証シーケンス図
+    depends_on:
+    - id: design:auth-design
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:auth
+      reason: WebFinger→OAuth2 Authorization Code+PKCE→トークン保存の全フロー網羅必須。フォールバック(WebFinger失敗時の直接URL入力、RFC
+        7591非対応時の手動client_id入力、refresh token失敗時のブラウザ再認証)を含む。
+    modules:
+    - auth
+  - node_id: design:sync-state-machine
+    output: docs/detailed_design/sync_state_machine.md
+    title: 同期状態遷移図
+    depends_on:
+    - id: design:sync-transfer-design
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:sync
+      reason: 変更検出(ローカル:mtime、リモート:ETag優先/Last-Modifiedフォールバック)、コンフリクト時スキップ(--forceで上書き)、初回sync挙動、削除伝播、中断再開の全状態遷移を定義必須。
+    modules:
+    - sync
+  - node_id: design:transfer-retry-flow
+    output: docs/detailed_design/transfer_retry_flow.md
+    title: 転送・リトライフロー図
+    depends_on:
+    - id: design:sync-transfer-design
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:transfer
+      reason: exponential backoff(初回1秒/最大30秒/フルジッター)、429時全ワーカー停止+Retry-After適用、最大3回リトライの実装仕様を図示必須。
+    - targets:
+      - module:remotestorage
+      reason: HTTPタイムアウト(接続30秒/アイドル60秒)はHTTPクライアント設定として実装必須。
+    modules:
+    - transfer
+    - remotestorage
+  - node_id: design:credential-storage-detail
+    output: docs/detailed_design/credential_storage_detail.md
+    title: クレデンシャル保存詳細設計
+    depends_on:
+    - id: design:auth-design
+      relation: depends_on
+      semantic: technical
+    - id: governance:adr-cross-platform
+      relation: constrained_by
+      semantic: governance
+    conventions:
+    - targets:
+      - module:auth
+      - module:config
+      reason: OS別トークン保護(Linux/WSL:ファイル0600、macOS:Keychain、Windows:Credential Manager)の実装詳細を定義必須。Windowsではtoken.jsonファイル不要。
+    modules:
+    - auth
+    - config
+  '5':
+  - node_id: plan:implementation-plan
+    output: docs/plan/implementation_plan.md
+    title: 実装計画
+    depends_on:
+    - id: design:component-dependency-map
+      relation: depends_on
+      semantic: technical
+    - id: design:auth-sequence
+      relation: depends_on
+      semantic: technical
+    - id: design:sync-state-machine
+      relation: depends_on
+      semantic: technical
+    - id: design:transfer-retry-flow
+      relation: depends_on
+      semantic: technical
+    - id: design:credential-storage-detail
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - cli_command:rscli
+      reason: Linux/macOS/Windowsの全対象OSでの動作確認をマイルストーンに含めること。未確認OSがあればリリース不可。
+    - targets:
+      - module:remotestorage
+      reason: draft-dejong-remotestorage-22準拠の結合テストをリリース前に実施必須。
+    modules:
+    - auth
+    - sync
+    - transfer
+    - cli
+    - config
+    - remotestorage
+  - node_id: infra:build-and-release
+    output: docs/infra/build_and_release.md
+    title: ビルド・リリース設定
+    depends_on:
+    - id: plan:implementation-plan
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - cli_command:rscli
+      reason: GitHub Releasesとgo install両方での配布サポート必須。Linux/macOS/Windowsのクロスコンパイル必須。
+    modules:
+    - cli
+  - node_id: test:test-strategy
+    output: docs/test/test_strategy.md
+    title: テスト戦略
+    depends_on:
+    - id: test:acceptance-criteria
+      relation: depends_on
+      semantic: governance
+    - id: plan:implementation-plan
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:auth
+      reason: OAuth2フロー(PKCE、refresh token、全フォールバックパス)のE2Eテストをリリース前に実施必須。
+    - targets:
+      - module:sync
+      reason: コンフリクト検出・削除伝播・初回sync挙動・中断再開のテストシナリオをリリース前に実施必須。
+    - targets:
+      - module:transfer
+      reason: 429全ワーカー停止・exponential backoff・並列転送のテストをリリース前に実施必須。
+    modules:
+    - auth
+    - sync
+    - transfer
+    - cli
+    - config
+    - remotestorage
+  '6':
+  - node_id: operations:runbook
+    output: docs/operations/runbook.md
+    title: 運用手順書
+    depends_on:
+    - id: design:system-design
+      relation: depends_on
+      semantic: technical
+    - id: plan:implementation-plan
+      relation: depends_on
+      semantic: technical
+    conventions:
+    - targets:
+      - module:sync
+      reason: sync_state.json破損時の復旧手順(--reset-stateで初回sync扱いにリセット)とロックファイル解除手順(--force-unlock)を記載必須。
+    - targets:
+      - module:auth
+      reason: トークン再認証手順、--no-interactive環境での事前トークン配置手順、connect再実行時の上書き確認手順を記載必須。
+    modules:
+    - auth
+    - sync
+    - cli
+    - config
