@@ -1,0 +1,84 @@
+version: '1.0'
+project_id: rstools
+provenance: inferred
+confidence: 0.5
+fetched_at: '2026-05-22T17:28:38.166618Z'
+draft_context:
+  detected_context: []
+  question_template: codd/templates/lexicon_questions.md
+  question_count: 21
+node_vocabulary:
+- id: url_route
+  description: Browser or API path exposed by the project.
+  extractor: filesystem_routes
+  naming_convention: kebab-case
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+- id: db_table
+  description: Persistent database table or collection name.
+  naming_convention: snake_case
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+- id: env_var
+  description: Runtime configuration environment variable.
+  naming_convention: SCREAMING_SNAKE_CASE
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+- id: cli_command
+  description: Command-line command, subcommand, or flag namespace.
+  naming_convention: kebab-case
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+- id: role
+  description: User, operator, or system role used for access and routing decisions.
+  naming_convention: snake_case
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+- id: domain_event
+  description: Domain event or lifecycle state transition name.
+  naming_convention: snake_case
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+- id: module_file
+  description: Source module or file path naming unit.
+  naming_convention: snake_case
+  provenance: inferred
+  confidence: 0.5
+  fetched_at: '2026-05-22T17:28:38.166618Z'
+naming_conventions:
+- id: kebab-case
+  regex: ^[a-z][a-z0-9-]*$
+- id: snake_case
+  regex: ^[a-z][a-z0-9_]*$
+- id: SCREAMING_SNAKE_CASE
+  regex: ^[A-Z][A-Z0-9_]*$
+- id: PascalCase
+  regex: ^[A-Z][A-Za-z0-9]*$
+design_principles:
+- This project_lexicon.yaml is an inferred draft and must be reviewed before conventions
+  are treated as human-approved.
+- 'Detected project context: unknown. Confirm or replace any convention that does
+  not match the project.'
+- Use one canonical name for the same domain concept across docs, code, config, and
+  CLI unless an exception is documented.
+failure_modes:
+- id: case_drift
+  pattern: The same concept appears with multiple naming cases.
+  detector: lexicon_validate
+- id: prefix_omission
+  pattern: A role, area, or environment prefix is missing where the project requires
+    one.
+  detector: lexicon_validate
+- id: untracked_vocabulary
+  pattern: A release-relevant node type is used without a lexicon entry.
+  detector: lexicon_validate
+extractor_registry:
+  filesystem_routes:
+    type: codd.parsing.FileSystemRouteExtractor
+    description: Extract filesystem-driven route paths from configured project directories.
