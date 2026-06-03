@@ -255,6 +255,10 @@ internal/
 testserver/         ローカルテスト用 remoteStorage サーバー
 ```
 
+## 開発について
+
+本プロジェクトは [Claude](https://claude.ai) による AI 支援のもとで開発した。
+
 ## ライセンス
 
 MIT
