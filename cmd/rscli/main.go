@@ -9,12 +9,16 @@ import (
 	"github.com/shun2580/rstools/internal/cli"
 )
 
+// version is set at build time via -ldflags "-X main.version=vX.Y.Z".
+var version = "dev"
+
 func main() {
 	gf := &cli.GlobalFlags{}
 
 	root := &cobra.Command{
-		Use:   "rscli",
-		Short: "remoteStorage CLI ツール",
+		Use:     "rscli",
+		Short:   "remoteStorage CLI ツール",
+		Version: version,
 		Long: `rscli は remoteStorage プロトコル（draft-dejong-remotestorage-22）を操作する
 Go 製 CLI ツールです。WebFinger によるサーバー自動検出と OAuth2 + PKCE 認証を
 サポートします。`,

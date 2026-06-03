@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binaries
+        env:
+          CGO_ENABLED: "0"
+          VERSION: ${{ github.ref_name }}
+          LDFLAGS: -s -w -X main.version=${{ github.ref_name }}
+        run: |
+          mkdir -p dist
+
+          GOOS=linux   GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/rscli-linux-amd64     ./cmd/rscli/
+          GOOS=linux   GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/rscli-linux-arm64     ./cmd/rscli/
+          GOOS=darwin  GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/rscli-darwin-amd64    ./cmd/rscli/
+          GOOS=darwin  GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/rscli-darwin-arm64    ./cmd/rscli/
+          GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/rscli-windows-amd64.exe ./cmd/rscli/
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > checksums.txt && cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/rscli-linux-amd64
+            dist/rscli-linux-arm64
+            dist/rscli-darwin-amd64
+            dist/rscli-darwin-arm64
+            dist/rscli-windows-amd64.exe
+            dist/checksums.txt
