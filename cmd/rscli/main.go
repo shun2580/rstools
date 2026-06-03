@@ -30,6 +30,8 @@ Go 製 CLI ツールです。WebFinger によるサーバー自動検出と OAut
 		cli.NewGetCmd(gf),
 		cli.NewPutCmd(gf),
 		cli.NewRmCmd(gf),
+		cli.NewPushCmd(gf),
+		cli.NewPullCmd(gf),
 	)
 
 	if err := root.Execute(); err != nil {
